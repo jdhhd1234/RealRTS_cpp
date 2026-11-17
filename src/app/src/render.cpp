@@ -1,5 +1,6 @@
 #include "render.hpp"
 
+#include <algorithm>
 #include <cstdint>
 
 namespace app
@@ -87,9 +88,35 @@ void DrawMap(SDL_Renderer* renderer, const Camera2D& camera, SDL_FPoint viewSize
     }
 }
 
+void DrawSupplyPoints(SDL_Renderer* renderer, const Camera2D& camera, SDL_FPoint viewSize, const sim::SimState& state)
+{
+    const auto draw = [&](const sim::SupplyPoint& point, float half)
+    {
+        const SDL_FPoint p = WorldToScreen(camera, viewSize, state.map.nodes[mapdata::ToIndex(point.node)].pos);
+        const SDL_FRect rect{p.x - half, p.y - half, half * 2.0f, half * 2.0f};
+        SetColor(renderer, SideColor(point.side));
+        SDL_RenderFillRect(renderer, &rect);
+        SetColor(renderer, SDL_Color{20, 20, 20, 255});
+        SDL_RenderRect(renderer, &rect);
+    };
+    for (const sim::SupplyPoint& base : state.supply.bases)
+    {
+        draw(base, 7.0f);
+    }
+    for (const sim::SupplyPoint& depot : state.supply.depots)
+    {
+        draw(depot, 4.0f);
+    }
+}
+
 void DrawUnits(SDL_Renderer* renderer, const Camera2D& camera, SDL_FPoint viewSize, const sim::SimState& state,
                std::optional<sim::UnitId> selected)
 {
+    constexpr SDL_Color kGoodColors[sim::kGoodCount]{
+        SDL_Color{230, 180, 40, 255}, // 연료
+        SDL_Color{200, 70, 60, 255},  // 탄약
+        SDL_Color{70, 160, 70, 255},  // 식량
+    };
     for (auto [entity, info, position] : state.registry.view<const sim::UnitInfo, const sim::Position>().each())
     {
         const SDL_FPoint p = WorldToScreen(camera, viewSize, position.value);
@@ -112,6 +139,25 @@ void DrawUnits(SDL_Renderer* renderer, const Camera2D& camera, SDL_FPoint viewSi
         SDL_RenderFillRect(renderer, &body);
         SetColor(renderer, SDL_Color{20, 20, 20, 255});
         SDL_RenderRect(renderer, &body);
+
+        const sim::Cargo& stock = state.registry.get<sim::Stocks>(entity).amount;
+        for (std::size_t g = 0; g < sim::kGoodCount; ++g)
+        {
+            const float fill = static_cast<float>(std::clamp(stock[g] / sim::kUnitTargetStock[g], 0.0, 1.0));
+            const float y = body.y + body.h + 2.0f + static_cast<float>(g) * 3.0f;
+            const SDL_FRect back{body.x, y, body.w, 2.0f};
+            const SDL_FRect bar{body.x, y, body.w * fill, 2.0f};
+            SetColor(renderer, SDL_Color{40, 40, 40, 255});
+            SDL_RenderFillRect(renderer, &back);
+            SetColor(renderer, kGoodColors[g]);
+            SDL_RenderFillRect(renderer, &bar);
+        }
+        if (!state.registry.get<sim::SupplySource>(entity).depotNode)
+        {
+            const float y = body.y + body.h + 2.0f + static_cast<float>(sim::kGoodCount) * 3.0f;
+            SetColor(renderer, SDL_Color{255, 0, 0, 255});
+            SDL_RenderLine(renderer, body.x, y, body.x + body.w, y);
+        }
 
         if (selected && *selected == info.id)
         {

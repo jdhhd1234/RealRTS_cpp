@@ -7,6 +7,9 @@ namespace sim
 {
 
 void ApplyCommands(SimState& state);
+void Consumption(SimState& state);
 void Movement(SimState& state);
+void ReceiveShipments(SimState& state);
+void Supply(SimState& state);
 
 }

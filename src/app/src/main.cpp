@@ -173,6 +173,7 @@ int main(int, char**)
         SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
         SDL_RenderClear(renderer);
         app::DrawMap(renderer, camera, viewSize, state.map);
+        app::DrawSupplyPoints(renderer, camera, viewSize, state);
         app::DrawUnits(renderer, camera, viewSize, state, selected);
         SDL_RenderPresent(renderer);
     }

@@ -2,10 +2,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
 #include "mapdata/map.hpp"
+#include "sim/supply.hpp"
 
 namespace sim
 {
@@ -32,6 +34,18 @@ struct MovePath
 {
     std::vector<mapdata::Pos> waypoints;
     std::size_t next = 0;
+};
+
+// 사단이 들고 있는 물자 (t).
+struct Stocks
+{
+    Cargo amount{};
+};
+
+// 보급받는 보급소가 있는 노드. nullopt = 고립 (4.4). 1시간마다 다시 정한다.
+struct SupplySource
+{
+    std::optional<mapdata::NodeId> depotNode;
 };
 
 }

@@ -4,7 +4,9 @@ find_package(EnTT CONFIG REQUIRED)
 add_library(realrts_sim STATIC
     src/sim_state.cpp
     src/commands.cpp
+    src/consumption.cpp
     src/movement.cpp
+    src/supply.cpp
     src/pathfinding.cpp
     src/tick_pacer.cpp
 )
