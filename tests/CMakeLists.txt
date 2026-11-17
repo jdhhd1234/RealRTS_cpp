@@ -1,7 +1,7 @@
 find_package(Catch2 3 CONFIG REQUIRED)
 include(Catch)
 
-add_executable(sim_tests sim_tests.cpp)
+add_executable(sim_tests sim_tests.cpp movement_tests.cpp)
 target_link_libraries(sim_tests PRIVATE realrts_sim Catch2::Catch2WithMain)
 catch_discover_tests(sim_tests)
 

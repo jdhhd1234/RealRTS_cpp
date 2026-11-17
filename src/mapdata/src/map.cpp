@@ -154,6 +154,28 @@ void ValidateScenario(const Map& map, const ScenarioData& scenario)
 
 }
 
+std::optional<std::size_t> CellAt(const CellGrid& grid, Pos pos)
+{
+    if (!(pos.x >= 0.0f && pos.y >= 0.0f)) // NaN도 여기서 걸러진다
+    {
+        return std::nullopt;
+    }
+    const auto x = static_cast<std::uint64_t>(pos.x / grid.cellSize);
+    const auto y = static_cast<std::uint64_t>(pos.y / grid.cellSize);
+    if (x >= grid.width || y >= grid.height)
+    {
+        return std::nullopt;
+    }
+    return CellIndex(grid, static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y));
+}
+
+Pos CellCenter(const CellGrid& grid, std::size_t cell)
+{
+    const auto x = static_cast<float>(cell % grid.width);
+    const auto y = static_cast<float>(cell / grid.width);
+    return Pos{(x + 0.5f) * grid.cellSize, (y + 0.5f) * grid.cellSize};
+}
+
 void Validate(const Baked& baked)
 {
     ValidateGrid(baked.map);

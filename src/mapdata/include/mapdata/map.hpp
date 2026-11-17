@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <vector>
@@ -51,6 +52,10 @@ constexpr std::size_t CellIndex(const CellGrid& grid, std::uint32_t x, std::uint
 {
     return std::size_t{y} * grid.width + x;
 }
+
+// 좌표가 들어 있는 셀. 지도 밖이면 nullopt.
+std::optional<std::size_t> CellAt(const CellGrid& grid, Pos pos);
+Pos CellCenter(const CellGrid& grid, std::size_t cell);
 
 // 일 생산량 (t/일).
 struct Production

@@ -1,10 +1,15 @@
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_main.h>
 
+#include <cmath>
 #include <cstdint>
 #include <format>
+#include <optional>
 #include <string>
 
+#include "camera.hpp"
+#include "mapdata/test_map.hpp"
+#include "render.hpp"
 #include "sim/sim_state.hpp"
 #include "sim/tick_pacer.hpp"
 
@@ -34,6 +39,14 @@ std::string WindowTitle(const sim::SimState& state, int speed)
     return std::format("RealRTS - Day {} {:02}:{:02} - {}", day, hour, minute, speedText);
 }
 
+SDL_FPoint ViewSize(SDL_Renderer* renderer)
+{
+    int width = 0;
+    int height = 0;
+    SDL_GetRenderOutputSize(renderer, &width, &height);
+    return SDL_FPoint{static_cast<float>(width), static_cast<float>(height)};
+}
+
 }
 
 int main(int, char**)
@@ -54,6 +67,23 @@ int main(int, char**)
     }
 
     sim::SimState state;
+    try
+    {
+        state = sim::LoadScenario(mapdata::MakeTestMap());
+    }
+    catch (const mapdata::LoadError& error)
+    {
+        SDL_Log("map load failed: %s", error.what());
+        SDL_DestroyRenderer(renderer);
+        SDL_DestroyWindow(window);
+        SDL_Quit();
+        return 1;
+    }
+
+    app::Camera2D camera = app::FitToMap(state.map.grid, ViewSize(renderer));
+    std::optional<sim::UnitId> selected;
+    bool panning = false;
+
     sim::TickPacer pacer;
     int speedBeforePause = pacer.Speed();
     std::string shownTitle;
@@ -62,9 +92,13 @@ int main(int, char**)
     bool running = true;
     while (running)
     {
+        const SDL_FPoint viewSize = ViewSize(renderer);
+
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+            SDL_ConvertEventToRenderCoordinates(renderer, &event); // 마우스 좌표를 렌더 픽셀 좌표로
+
             if (event.type == SDL_EVENT_QUIT)
             {
                 running = false;
@@ -88,6 +122,35 @@ int main(int, char**)
                     pacer.SetSpeed(speed);
                 }
             }
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_DOWN)
+            {
+                const SDL_FPoint mouse{event.button.x, event.button.y};
+                if (event.button.button == SDL_BUTTON_LEFT)
+                {
+                    selected = app::PickUnit(state, camera, viewSize, mouse);
+                }
+                else if (event.button.button == SDL_BUTTON_RIGHT && selected)
+                {
+                    sim::Submit(state, sim::cmd::Move{*selected, app::ScreenToWorld(camera, viewSize, mouse)});
+                }
+                else if (event.button.button == SDL_BUTTON_MIDDLE)
+                {
+                    panning = true;
+                }
+            }
+            else if (event.type == SDL_EVENT_MOUSE_BUTTON_UP && event.button.button == SDL_BUTTON_MIDDLE)
+            {
+                panning = false;
+            }
+            else if (event.type == SDL_EVENT_MOUSE_MOTION && panning)
+            {
+                app::Pan(camera, event.motion.xrel, event.motion.yrel);
+            }
+            else if (event.type == SDL_EVENT_MOUSE_WHEEL)
+            {
+                const SDL_FPoint mouse{event.wheel.mouse_x, event.wheel.mouse_y};
+                app::ZoomAt(camera, viewSize, mouse, std::pow(1.15f, event.wheel.y));
+            }
         }
 
         const std::uint64_t nowNs = SDL_GetTicksNS();
@@ -109,6 +172,8 @@ int main(int, char**)
 
         SDL_SetRenderDrawColor(renderer, 30, 30, 30, 255);
         SDL_RenderClear(renderer);
+        app::DrawMap(renderer, camera, viewSize, state.map);
+        app::DrawUnits(renderer, camera, viewSize, state, selected);
         SDL_RenderPresent(renderer);
     }
 
